@@ -15,7 +15,7 @@ from keep_alive import keep_alive
 
 # --- CONFIGURATION ---
 TOKEN = os.environ.get("TOKEN") 
-ADMIN_ID = int(os.environ.get("ADMIN_ID", "0")) # REPLACE WITH YOUR ID IF TESTING LOCALLY
+ADMIN_ID = int(os.environ.get("ADMIN_ID", "0")) 
 
 UPLOAD_DIR = "scripts"
 if not os.path.exists(UPLOAD_DIR):
@@ -61,6 +61,7 @@ def restricted(func):
 async def install_requirements(req_path, update):
     status_msg = await update.message.reply_text("⏳ **Installing requirements...**")
     try:
+        # pip install uses full path relative to root
         process = await asyncio.create_subprocess_exec(
             "pip", "install", "-r", req_path,
             stdout=asyncio.subprocess.PIPE,
@@ -178,7 +179,7 @@ async def execute_script(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Fallback if triggered via "My Files" -> "Run"
         filename = context.user_data.get('target_file')
         
-    py_path = os.path.join(UPLOAD_DIR, filename)
+    # py_path is only needed for checking existence, not for running inside cwd
     env_path = os.path.join(UPLOAD_DIR, f"{filename}.env")
     
     # 1. Check if running
@@ -200,12 +201,12 @@ async def execute_script(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_file = open(os.path.join(UPLOAD_DIR, f"{filename}.log"), "w")
     try:
         process = subprocess.Popen(
-            ["python", "-u", py_path], # -u for unbuffered output
+            ["python", "-u", filename], # <--- FIXED: ONLY FILENAME, NOT FULL PATH
             env=custom_env,
             stdout=log_file,
             stderr=subprocess.STDOUT,
-            cwd=UPLOAD_DIR,
-            preexec_fn=os.setsid # Allow killing the whole group
+            cwd=UPLOAD_DIR, # Running inside the 'scripts' folder
+            preexec_fn=os.setsid 
         )
         running_processes[filename] = process
 
